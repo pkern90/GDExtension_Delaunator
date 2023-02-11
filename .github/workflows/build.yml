@@ -4,55 +4,88 @@ on:
   push:
     tags:
       - "v*.*"
-  #push:
-  #  branches: [ master ]
+  push:
+    branches: [ master ]
   #pull_request:
   #  branches: [ master ]
 
+concurrency: 
+  group: ci-${{github.actor}}-${{github.head_ref || github.run_number}}-${{github.ref}}-macos
+  cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on:  ${{matrix.os}}
+    name: ${{matrix.name}}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - identifier: windows-debug
+            os: windows-2019
+            name: 🏁 Windows Debug
+            target: template_debug
+            platform: windows
+            arch: x86_64
+          - identifier: windows-release
+            os: windows-2019
+            name: 🏁 Windows Release
+            target: template_release
+            platform: windows
+            arch: x86_64
+          - identifier: linux-debug
+            os: ubuntu-18.04
+            name: 🐧 Linux Debug
+            runner: ubuntu-20.04
+            target: template_debug
+            platform: linux
+            arch: x86_64
+          - identifier: linux-release
+            os: ubuntu-18.04
+            name: 🐧 Linux Release
+            runner: ubuntu-20.04
+            target: template_release
+            platform: linux
+            arch: x86_64
+
     steps:
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v3
         with:
-          submodules: "true"
+          submodules: recursive
 
-      - name: Set up Python (for SCons)
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
-      - name: Install build tools
+      - name: Set up Scons
+        shell: bash
+        run: |
+          python -c "import sys; print(sys.version)"
+          python -m pip install scons
+          scons --version
+          
+      - name: Linux dependencies
+        if: ${{ matrix.platform == 'linux' }}
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y zip        # for zipping release artifacts
-          sudo apt-get install -qqq build-essential pkg-config libx11-dev libxcursor-dev libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev libudev-dev libxi-dev libxrandr-dev
-          sudo apt-get install -y mingw-w64
+          sudo apt-get install -qqq build-essential pkg-config
 
-      - name: Install scons
-        run: |
-          python -m pip install scons==4.0.0
+      - name: Setup MinGW for Windows/MinGW build
+        if: ${{ matrix.platform == 'windows' }}
+        uses: egor-tensin/setup-mingw@v2
 
-      - name: Build godot-cpp
+      - name: Compile godot-cpp
+        shell: sh
         run: |
-          pushd godot-cpp
-          scons platform=windows target=template_debug
-          scons platform=windows target=template_release
-          scons platform=linux   target=template_debug
-          scons platform=linux   target=template_release
-          popd
+          scons target='${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}'
+        working-directory: godot-cpp
 
-      - name: build delaunator Windows
-        continue-on-error: true
+      - name: Compile Extension
+        shell: sh
         run: |
-          scons platform=windows target=release bits=64 target_name="gddelaunator" target_path="./demo/addons/delaunator_gdextension/bin/"
-          scons platform=windows target=debug   bits=64 target_name="gddelaunator" target_path="./demo/addons/delaunator_gdextension/bin/"
-
-      - name: build delaunator Linux debug
-        run: |
-          scons platform=linux target=debug   bits=64 target_name="gddelaunator" target_path="./demo/addons/delaunator_gdextension/bin/"
-          scons platform=linux target=release bits=64 target_name="gddelaunator" target_path="./demo/addons/delaunator_gdextension/bin/"
+          scons target='${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}'
 
       - name: Upload binaries
         uses: actions/upload-artifact@v2
