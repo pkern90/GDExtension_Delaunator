@@ -29,7 +29,7 @@ env = Environment(ENV=os.environ)
 opts = Variables([], ARGUMENTS)
 
 # Define our options
-opts.Add(EnumVariable("target", "Compilation target", "debug", allowed_values=("debug", "release"), ignorecase=2))
+opts.Add(EnumVariable("target", "Compilation target", "template_debug", allowed_values=("template_debug", "template_release"), ignorecase=2))
 opts.Add(
     EnumVariable(
         "platform",
@@ -91,7 +91,7 @@ if env["platform"] == "":
 # - CPPDEFINES are for pre-processor defines
 # - LINKFLAGS are for linking flags
 
-if env["target"] == "debug":
+if env["target"] == "template_debug":
     env.Append(CPPDEFINES=["DEBUG_ENABLED", "DEBUG_METHODS_ENABLED"])
 
 # Check our platform specifics
@@ -110,7 +110,7 @@ if env["platform"] == "osx":
         env.Append(CCFLAGS=["-arch", env["macos_arch"]])
 
     env.Append(CXXFLAGS=["-std=c++17"])
-    if env["target"] == "debug":
+    if env["target"] == "template_debug":
         env.Append(CCFLAGS=["-g", "-O2"])
     else:
         env.Append(CCFLAGS=["-g", "-O3"])
@@ -120,7 +120,7 @@ if env["platform"] == "osx":
 elif env["platform"] in ("x11", "linux"):
     cpp_library += ".linux"
     env.Append(CCFLAGS=["-fPIC"])
-    if env["target"] == "debug":
+    if env["target"] == "template_debug":
         env.Append(CCFLAGS=["-g3", "-Og"])
     else:
         env.Append(CCFLAGS=["-g", "-O3"])
@@ -138,7 +138,7 @@ elif env["platform"] == "windows":
         env.Append(CPPDEFINES=["WIN32", "_WIN32", "_WINDOWS", "_CRT_SECURE_NO_WARNINGS"])
         env.Append(CCFLAGS=["-W3", "-GR"])
         env.Append(CXXFLAGS=["-std:c++17"])
-        if env["target"] == "debug":
+        if env["target"] == "template_debug":
             env.Append(CPPDEFINES=["_DEBUG"])
             env.Append(CCFLAGS=["-EHsc", "-MDd", "-ZI", "-FS"])
             env.Append(LINKFLAGS=["-DEBUG"])
