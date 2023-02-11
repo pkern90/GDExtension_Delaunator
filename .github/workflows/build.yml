@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*.*"
-  push:
     branches: [ master ]
   #pull_request:
   #  branches: [ master ]
@@ -65,7 +64,7 @@ jobs:
           python -c "import sys; print(sys.version)"
           python -m pip install scons
           scons --version
-          
+
       - name: Linux dependencies
         if: ${{ matrix.platform == 'linux' }}
         run: |
